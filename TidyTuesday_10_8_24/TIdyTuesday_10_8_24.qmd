@@ -69,55 +69,10 @@ ggplot(nps_species_TEStatus %>% filter(ParkCode == "GRSM" | ParkCode =="GRCA" |P
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-```{r}
-nps_species_TEStatus %>%
-  filter(ParkCode == "GRSM") %>%
-  group_by(CategoryName, TEStatus3) %>%
-  summarise(count = n()) %>%
-  mutate(prop = count / sum(count)) %>%
-  ggplot(aes(x = CategoryName, y = prop, fill = TEStatus3)) +
-  geom_bar(stat = "identity", position = "fill") +
-  scale_y_continuous(labels = scales::percent_format()) +
-  labs(
-    x = "Species Type", 
-    y = "Proportion of Conservation Status", 
-    fill = "Conservation Status",
-    title = "Conservation Status by Species Type in the Great Smoky Mountains National Park"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1))
-
-```
+The below plot shows the proportion of species in the Great Smoky Mountains National Park (`ParkCode == GRSM`) broken down by `CategoryName`. I chose the Great Smoky Mountains because it was the most visited national park in 2023. The plot shows that the majority of species in the park are "Species of Minimal Concern" and "Not of Concern." Animals, such as Mammals, Fish, and Birds have higher proportions of "Threatened" and "Endangered" species. Around half of the fish are `TEStatus == "50"`, which is the mysterious category I could not find any information about. The "50" category is not exclusively fish. I also added the total number of species in the park above the bars to give context to the proportions. Yes, I hacked it together by fiddling with the fill labs(), but it works when the graph is just the right size (which it isn't in the html output) **BUT** it's close enough and I spent so long trying to figure out how to get the numbers there in general so that was enough of a win for me.
 
 ```{r}
-nps_species_TEStatus %>%
-  filter(ParkCode == "GRSM") %>%
-  group_by(CategoryName, TEStatus3) %>%
-  summarise(count = n()) %>%
-  mutate(
-    prop = count / sum(count),
-    cumulative_prop = cumsum(prop) - 0.5 * prop  # Midpoint of each bar section for text
-  ) %>%
-  ggplot(aes(x = CategoryName, y = prop, fill = TEStatus3)) +
-  geom_bar(stat = "identity", position = "fill") +
-  
-  # Add text for species count
-  geom_text(aes(label = count, y = cumulative_prop), color = "white", size = 3) +
-  
-  scale_y_continuous(labels = scales::percent_format()) +
-  labs(
-    x = "Species Type", 
-    y = "Proportion of Conservation Status", 
-    fill = "Conservation Status",
-    title = "Conservation Status by Species Type in the Great Smoky Mountains National Park"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1))
-
-```
-
-```{r}
-# Total species in GRSM
+# Total species in GRSM for the text above the bars
 total_species <- nps_species_TEStatus %>%
   filter(ParkCode == "GRSM") %>%
   group_by(CategoryName) %>%
@@ -125,16 +80,15 @@ total_species <- nps_species_TEStatus %>%
 
 # Plot
 nps_species_TEStatus %>%
-  filter(ParkCode == "GRSM") %>%
+  filter(ParkCode == "GRSM") %>% # only Smoky Mtns
   group_by(CategoryName, TEStatus3) %>%
   summarise(count = n()) %>%
-  mutate(prop = count / sum(count)) %>%
+  mutate(prop = count / sum(count)) %>% # calculate proportions
   ggplot(aes(x = CategoryName, y = prop, fill = TEStatus3)) +
-  geom_bar(stat = "identity", position = "fill") +
-  # Add text for total species on top of each bar
+  geom_bar(stat = "identity", position = "fill") + # creates the bar plot, Copilot helped me with this
   geom_text(data = total_species, aes(x = CategoryName, y = 1.075, label = total_species), 
             inherit.aes = FALSE, size = 3.5, angle = 60) + # adds numbers above bars, thanks ChatGPT for the inherit.aes help <3
-  scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1.10), breaks = c(0, 0.25, 0.5, 0.75, 1)) + #  Thanks ChatGPT for the percent_format idea <3
+  scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1.10), breaks = c(0, 0.25, 0.5, 0.75, 1)) + # format y-axis labels, thanks ChatGPT for the percent_format help <3
   labs(
     x = "Species Type", 
     y = "Proportion of Conservation Status", 
@@ -144,6 +98,15 @@ nps_species_TEStatus %>%
   ) +
   theme_minimal() +
   scale_fill_manual(values = c("Endangered" = "#DC267F", "Threatened" = "#FE6100", "Species of Minimal Concern" = "#FFB000", "In Recovery" = "#00BFC4", "Not of Concern" = "#648FFF", "Other" = "#785EF0")) + # sets color palette
-  theme(axis.text.x = element_text(angle = 60, hjust = 1)) # tilts the x-axis labels
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))  # tilts the x-axis labels so they're easier to read
+```
+
+```{r}
+# Is "50" unique to fish?
+nps_species_TEStatus %>%
+  filter(TEStatus == "50") %>%
+  group_by(CategoryName) %>%
+  summarize(count = n())
+# No </3
 ```
 
