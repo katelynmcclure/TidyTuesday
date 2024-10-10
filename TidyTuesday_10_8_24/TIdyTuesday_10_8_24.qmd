@@ -1,0 +1,149 @@
+---
+title: "Tidy Tuesday -- National Park Species"
+subtitle: "10/8/24"
+author: "Katelyn McClure"
+format: 
+  html:
+    embed-resources: true
+---
+
+```{r setup, message=FALSE}
+# load necessary packages
+library(tidyverse)
+```
+
+
+```{r warning=FALSE, message=FALSE}
+# read in the data
+nps_species <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-08/most_visited_nps_species_data.csv', show_col_types = FALSE)
+```
+
+```{r}
+# exploring data
+nps_species %>% 
+  group_by(TEStatus) %>%
+  summarize(n())
+
+# What is "50"?? Is it unique to a specific park?
+nps_species %>%
+  filter(TEStatus == "50") %>%
+  group_by(ParkCode) %>%
+  summarize(count = n())
+# Nope </3 It's in all of them
+```
+
+I decided to group the TESpecies codes that do not exist on the ECOS (Environmental Conservation Online System) [website](https://ecos.fws.gov/ecp0/html/db-status.html) together into an "Other" category because I could not find ANY information about them (specifically "50"). There's [this link](https://www.fws.gov/endangered/about/listing-status-codes.html) buried in the [Tidy Tuesday additional references](https://irma.nps.gov/content/npspecies/Help/docs/NPSpecies_User_Guide.pdf) that *should* correspond to all of these codes but the website was "recently redeveloped" so this exact link no longer exists. (Try it for yourself if you don't believe me!) Trust me, I searched the new redeveloped site and could not find all of the codes. I am also removing categories that I deemed to be irrelevant to Threatened/Endangered status (ex. DNS = Original Data in Error)
+
+Due to the size of the dataset, I also decided to combine some of the similar Status Codes into a broader category according to the Endangered Species Act Status Codes in ECOS to simplify the number of factors and to make the categories more recognizable. For example, I combined "PT" (Proposed Threatened) with "T" (Threatened) into a broader "Threatened" category.
+
+```{r}
+# Create easier to understand categories for TEStatus 
+nps_species_TEStatus <- nps_species %>%
+  mutate(TEStatus2 = ifelse(is.na(TEStatus), "Not of Concern", TEStatus)) %>% # replace NA with "Not of Concern"
+  mutate(TEStatus3 = case_when(
+    TEStatus2 %in% c("D3A", "E", "E,EXPN", "PE") ~ "Endangered",
+    TEStatus2 %in% c("EXPN", "PSAT", "PT", "T") ~ "Threatened",
+    TEStatus2 == "Not of Concern" ~ "Not of Concern",
+    TEStatus2 %in% c("C", "RT,SC", "SC", "SC,SU", "UR") ~ "Species of Minimal Concern",
+    TEStatus2 == "DM" ~ "In Recovery",
+    TEStatus2 %in% c("50", "DNS", "SU", "RT") ~ "Other",
+  )) %>%
+  mutate(TEStatus3 = as.factor(TEStatus3)) %>%
+  mutate(TEStatus3 = fct_relevel(TEStatus3, "Endangered", "Threatened", "Species of Minimal Concern", "In Recovery", "Not of Concern", "Other"))
+
+nps_species_TEStatus %>%
+  group_by(TEStatus3) %>%
+  summarize(count = n())
+```
+
+```{r}
+# plot
+# maybe a bar chart bar plot showing the types of CategoryNames and how endangered they are? or could split it up by park? Could show proportions since I'm assuming some parks probably have more species in them?
+
+ggplot(nps_species_TEStatus %>% filter(ParkCode == "GRSM" | ParkCode =="GRCA" |ParkCode == "ZION" | ParkCode =="YELL" | ParkCode =="ROMO"), aes(x = TEStatus3, fill = TEStatus3)) +
+  geom_bar() +
+  labs(title = "Endangered Species Status in National Parks",
+       x = "Endangered Species Status",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+nps_species_TEStatus %>%
+  filter(ParkCode == "GRSM") %>%
+  group_by(CategoryName, TEStatus3) %>%
+  summarise(count = n()) %>%
+  mutate(prop = count / sum(count)) %>%
+  ggplot(aes(x = CategoryName, y = prop, fill = TEStatus3)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = "Species Type", 
+    y = "Proportion of Conservation Status", 
+    fill = "Conservation Status",
+    title = "Conservation Status by Species Type in the Great Smoky Mountains National Park"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+```
+
+```{r}
+nps_species_TEStatus %>%
+  filter(ParkCode == "GRSM") %>%
+  group_by(CategoryName, TEStatus3) %>%
+  summarise(count = n()) %>%
+  mutate(
+    prop = count / sum(count),
+    cumulative_prop = cumsum(prop) - 0.5 * prop  # Midpoint of each bar section for text
+  ) %>%
+  ggplot(aes(x = CategoryName, y = prop, fill = TEStatus3)) +
+  geom_bar(stat = "identity", position = "fill") +
+  
+  # Add text for species count
+  geom_text(aes(label = count, y = cumulative_prop), color = "white", size = 3) +
+  
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = "Species Type", 
+    y = "Proportion of Conservation Status", 
+    fill = "Conservation Status",
+    title = "Conservation Status by Species Type in the Great Smoky Mountains National Park"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+```
+
+```{r}
+# Total species in GRSM
+total_species <- nps_species_TEStatus %>%
+  filter(ParkCode == "GRSM") %>%
+  group_by(CategoryName) %>%
+  summarise(total_species = n())
+
+# Plot
+nps_species_TEStatus %>%
+  filter(ParkCode == "GRSM") %>%
+  group_by(CategoryName, TEStatus3) %>%
+  summarise(count = n()) %>%
+  mutate(prop = count / sum(count)) %>%
+  ggplot(aes(x = CategoryName, y = prop, fill = TEStatus3)) +
+  geom_bar(stat = "identity", position = "fill") +
+  # Add text for total species on top of each bar
+  geom_text(data = total_species, aes(x = CategoryName, y = 1.075, label = total_species), 
+            inherit.aes = FALSE, size = 3.5, angle = 60) + # adds numbers above bars, thanks ChatGPT for the inherit.aes help <3
+  scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1.10), breaks = c(0, 0.25, 0.5, 0.75, 1)) + #  Thanks ChatGPT for the percent_format idea <3
+  labs(
+    x = "Species Type", 
+    y = "Proportion of Conservation Status", 
+    title = "Conservation Status by Species Type",
+    fill = "Total Species Count\n\n\n\nConservation Status",
+    subtitle = "Greate Smoky Mountains National Park"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("Endangered" = "#DC267F", "Threatened" = "#FE6100", "Species of Minimal Concern" = "#FFB000", "In Recovery" = "#00BFC4", "Not of Concern" = "#648FFF", "Other" = "#785EF0")) + # sets color palette
+  theme(axis.text.x = element_text(angle = 60, hjust = 1)) # tilts the x-axis labels
+```
+
