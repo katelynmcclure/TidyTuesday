@@ -1,0 +1,99 @@
+---
+title: "Tidy Tuesday -- World's Fairs -- 8/13/24"
+format: html
+---
+
+```{r}
+# load necessary packages
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+# read in the data
+worlds_fairs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-08-13/worlds_fairs.csv')
+```
+
+I am interested to see if the length of the fairs has any relationship to the number of visitors. Do longer fairs attract more people? I am also curious to see if the geographic location of the fair has any trends in regards to the number of visitors. Are, for example, European fairs more highly attended than fairs in Asia or the Americas? 
+
+```{r}
+# was going to manually enter in if the month had 30 or 31 days but found a lubridate function that does this for me <3
+worlds_fairs %>% 
+  group_by(end_month) %>%
+  summarise(num = n())
+```
+
+
+```{r}
+# create variables for start_dom, end_dom, start_date and end_date of the fair, assumes the fair started on the 1st of the month and ends on the last date of the respective month (exact date unknown in data, only month/year). then counts the number of elapsed days
+worlds_fairs_days <- worlds_fairs %>% 
+  mutate(start_dom = 1,
+         end_dom = days_in_month(make_date(end_year, end_month)),
+         start_date = make_date(year = start_year, month = start_month, day = start_dom),
+         end_date = make_date(year = end_year, month = end_month, day = end_dom)) %>%
+  mutate(elapsed_days = as.numeric(end_date - start_date))
+```
+
+```{r}
+# visitors vs number of days the fair lasted 
+worlds_fairs_days %>% 
+  ggplot(aes(x = elapsed_days, y = visitors)) +
+  geom_point() +
+  labs(title = 'Visitors vs Number of Days the Fair Lasted',
+       x = 'Number of Days the Fair Lasted',
+       y = 'Number of Visitors (millions)')
+```
+
+```{r}
+# number of days the fair lasted by the year the fair ended
+worlds_fairs_days %>% 
+  ggplot(aes(x = end_year, y = elapsed_days)) +
+  geom_point() +
+  labs(title = '',
+       y = 'Number of Days the Fair Lasted',
+       x = 'year fair ended')
+```
+
+
+```{r}
+# number of fairs held in each country
+worlds_fairs_days %>% 
+  group_by(country) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count))
+```
+
+```{r}
+# create a variable for the continent of the country the fair was held in
+# decided to put "Colony of Victoria" as Oceania because of the physical location rather than Europe (territory was ruled by Great Britain rather than Australia)
+worlds_fairs_days_continent <- worlds_fairs_days %>% 
+  mutate(continent = case_when(country == "United States" | country == "Canada" | country == "Haiti" ~ "americas", country == "France" | country == "Italy" | country == "Belgium" | country == "Spain" | country == "Bulgaria" | country == "Sweden" | country == "United Kingdom" | country == "West Germany"| country == "Austria-Hungary" | country == "Finland" | country == "Germany" | country == "Hungary" | country == "Portugal" ~ "europe", country == "Japan" | country == "Israel" | country == "South Korea" | country == "Kazakhstan" | country == "People's Republic of China" | country == "United Arab Emirates" ~ "asia", country == "Australia" | country == "Colony of Victoria" ~ "oceania"))
+```
+
+```{r}
+# number of visitors at the World's Fair by start year, colored by continent
+worlds_fairs_days_continent %>%
+  ggplot(aes(x = start_year, y = visitors, color = continent)) +
+  geom_point(size = 3) +
+  theme_classic() +
+  labs(title = "Number of Visitors at the World's Fair by Start Year",
+       subtitle = "Colored by Continent",
+       x = "World's Fair Start Year",
+       y = "Number of Visitors (millions)")
+```
+
+```{r}
+# number of visitors at the World's Fair by start year, colored by how long the fair lasted
+worlds_fairs_days_continent %>%
+  ggplot(aes(x = start_year, y = visitors, color = elapsed_days, shape = continent)) +
+  geom_point(size = 3) +
+  scale_color_gradient(low = "blue", high = "red2") +
+  theme_classic() +
+  labs(title = "Number of Visitors at the World's Fair by Start Year",
+       subtitle = "including duration of the fair (color) and continent in which the fair took place (shape)",
+       x = "World's Fair Start Year",
+       y = "Number of Visitors (millions)",
+       color = "Elapsed Days",
+       shape = "Continent") 
+```
