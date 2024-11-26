@@ -54,6 +54,6 @@ parfumo_data_clean %>%
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(face = "bold")) +
   labs(x = "Main Accords", y = "Mean Rating", title = "Mean Rating on Parfumo.com by Main Accords", subtitle = "Main accords represent the dominant scent families of a perfume, combining notes that create \nits characteristic impression. Most perfumes typically feature 3 to 5 main accords.") +
-  coord_cartesian(ylim = c(6.5, 8)) 
+  coord_cartesian(ylim = c(6.5, 8))
 ```
 
