@@ -1,0 +1,59 @@
+---
+title: "Tidy Tuesday -- Perfume"
+subtitle: "12/1/24"
+author: "Katelyn McClure"
+format: 
+  html:
+    embed-resources: true
+---
+
+```{r setup, message=FALSE}
+# load necessary packages
+library(tidyverse)
+library(plotly)
+```
+
+```{r}
+parfumo_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-12-10/parfumo_data_clean.csv')
+```
+
+```{r}
+# Removing perfumes with no rating and no main accords 
+parfumo_data_clean <- parfumo_data %>%
+  filter(!is.na(Rating_Value)) %>%
+  filter(!is.na(Main_Accords))
+```
+
+```{r}
+# separate the main accords to get their own row
+parfumo_data_clean <- parfumo_data_clean %>%
+  separate_rows(Main_Accords, sep = ", ") 
+
+# count the number, mean rating, median rating, sd of rating of perfumes with each main accord
+parfumo_data_clean <- parfumo_data_clean %>%
+  group_by(Main_Accords) %>%
+  summarize(count = n(), mean_rating = mean(Rating_Value, na.rm = TRUE), median_rating = median(Rating_Value, na.rm = TRUE), sd_rating = sd(Rating_Value, na.rm = TRUE)) %>%
+  arrange(desc(mean_rating))
+```
+
+```{r}
+# plot the perfumes by main accords and rating
+parfumo_data_clean %>%
+  ggplot(aes(x = fct_reorder(Main_Accords, desc(mean_rating)), y = mean_rating)) +
+  geom_col(fill = rainbow(21, start = .1), color = "black") +
+  geom_hline(yintercept = 7.81, color = "orange") +
+  annotate(
+    "label", label = "Highest Rated:\nChypre (7.80/10)",
+    x = 19, y = 7.65, size = 4, color = "orange", fontface = "bold"
+  ) +
+  geom_hline(yintercept = 6.715, color = "red") +
+  annotate(
+    "label", label = "Lowest Rated:\nSynthetic (6.71/10)",
+    x = 4, y = 6.87, size = 4, color = "red", fontface = "bold"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(face = "bold")) +
+  labs(x = "Main Accords", y = "Mean Rating", title = "Mean Rating on Parfumo.com by Main Accords", subtitle = "Main accords represent the dominant scent families of a perfume, combining notes that create \nits characteristic impression. Most perfumes typically feature 3 to 5 main accords.") +
+  coord_cartesian(ylim = c(6.5, 8)) 
+```
+
